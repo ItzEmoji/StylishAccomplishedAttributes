@@ -102,36 +102,44 @@ async def generatekey(interaction: discord.Interaction, amount: int, credits: in
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+class AddStockModal(discord.ui.Modal, title="Add Stock"):
+    def __init__(self, item_id: str, name: str, price: float):
+        super().__init__()
+        self.item_id = item_id
+        self.name = name
+        self.price = price
+        self.stock_text = discord.ui.TextInput(
+            label="Stock Items",
+            placeholder="Enter items, one per line",
+            style=discord.TextStyle.paragraph,
+            required=True
+        )
+        self.add_item(self.stock_text)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        stock_items = self.stock_text.value.splitlines()
+        
+        shop.stock[self.item_id] = {
+            "name": self.name,
+            "price": self.price,
+            "stock": stock_items
+        }
+        shop.save_data()
+
+        embed = create_embed(
+            "Stock Added",
+            f"✅ Added {len(stock_items)} items to {self.name}"
+        )
+        await interaction.response.send_message(embed=embed)
+
 @bot.tree.command(name="addstock", description="Add items to shop [Admin Only] 🏪")
 async def addstock(interaction: discord.Interaction, item_id: str, name: str, price: float):
     if not is_owner(interaction.user.id):
         await interaction.response.send_message("❌ You don't have permission to use this command!")
         return
 
-    if not interaction.message.attachments:
-        await interaction.response.send_message("❌ Please attach a .txt file with the stock!")
-        return
-
-    attachment = interaction.message.attachments[0]
-    if not attachment.filename.endswith('.txt'):
-        await interaction.response.send_message("❌ Please provide a .txt file!")
-        return
-
-    content = await attachment.read()
-    stock_items = content.decode('utf-8').splitlines()
-
-    shop.stock[item_id] = {
-        "name": name,
-        "price": price,
-        "stock": stock_items
-    }
-    shop.save_data()
-
-    embed = create_embed(
-        "Stock Added",
-        f"✅ Added {len(stock_items)} items to {name}"
-    )
-    await interaction.response.send_message(embed=embed)
+    modal = AddStockModal(item_id, name, price)
+    await interaction.response.send_modal(modal)
 
 @bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
 async def purchase(interaction: discord.Interaction, item_id: str, quantity: int = 1):
