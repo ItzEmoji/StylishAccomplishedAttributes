@@ -101,12 +101,23 @@ async def generatekey(interaction: discord.Interaction, amount: int, credits: in
     
     shop.save_data()
 
-    keys_text = "\n".join([f"🔑 **{key}** - 💰 {credits} credits" for key in generated_keys])
-    embed = create_embed(
-        "Keys Generated",
-        f"Generated {amount} keys:\n{keys_text}"
-    )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    if amount == 1:
+        keys_text = "\n".join([f"🔑 **{key}** - 💰 {credits} credits" for key in generated_keys])
+        embed = create_embed(
+            "Keys Generated",
+            f"Generated {amount} key:\n{keys_text}"
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+        # Create txt file for multiple keys
+        keys_text = "\n".join([f"{key} - {credits} credits" for key in generated_keys])
+        buffer = io.StringIO(keys_text)
+        file = discord.File(fp=buffer, filename=f"generated_keys_{amount}.txt")
+        embed = create_embed(
+            "Keys Generated",
+            f"✅ Generated {amount} keys!\nCheck the attached file."
+        )
+        await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
 
 @bot.tree.command(name="addstock", description="Add items to shop [Admin Only] 🏪")
 @app_commands.describe(
