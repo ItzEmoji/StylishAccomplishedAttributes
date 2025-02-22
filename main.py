@@ -89,7 +89,7 @@ async def stock(interaction: discord.Interaction):
 @bot.tree.command(name="generatekey", description="Generate redeem keys [Admin Only] 🔑")
 async def generatekey(interaction: discord.Interaction, amount: int, credits: int):
     if not is_owner(interaction.user.id):
-        await interaction.response.send_message("❌ You don't have permission to use this command!")
+        await interaction.response.send_message("❌ You don't have permission to use this command!", ephemeral=True)
         return
 
     generated_keys = []
@@ -100,13 +100,17 @@ async def generatekey(interaction: discord.Interaction, amount: int, credits: in
 
     shop.save_data()
 
+    # Send confirmation in server
+    await interaction.response.send_message("✅ Keys generated! Check your DMs.", ephemeral=True)
+
+    # Send keys via DM
     if amount == 1:
         keys_text = "\n".join([f"🔑 **{key}** - 💰 {credits} credits" for key in generated_keys])
         embed = create_embed(
             "Keys Generated",
             f"Generated {amount} key:\n{keys_text}"
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.user.send(embed=embed)
     else:
         # Create txt file for multiple keys
         keys_text = "\n".join([f"{key} - {credits} credits" for key in generated_keys])
@@ -116,7 +120,7 @@ async def generatekey(interaction: discord.Interaction, amount: int, credits: in
             "Keys Generated",
             f"✅ Generated {amount} keys!\nCheck the attached file."
         )
-        await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
+        await interaction.user.send(embed=embed, file=file)
 
 @bot.tree.command(name="addstock", description="Add items to shop [Admin Only] 🏪")
 @app_commands.describe(
