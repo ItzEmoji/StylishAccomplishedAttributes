@@ -322,8 +322,51 @@ async def purchase(interaction: discord.Interaction, item_id: str, quantity: int
     # Confirmation in channel
     embed = create_embed(
         "Purchase Successful",
-        f"✅ Successfully purchased {quantity}x {item['name']}\nCheck your DMs for the items!"
+        f"✅ Successfully purchased {quantity}x {item['name']}\nCheck your DMs for the items!\n\n"
+        "⚠️ If there's any issue with your purchase, use `/ticket` to report it."
     )
     await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="wrong", description="Report an issue with your purchase 🎟️")
+async def wrong(interaction: discord.Interaction, item_id: str):
+    # Create ticket channel
+    guild = interaction.guild
+    category = discord.utils.get(guild.categories, name="Tickets")
+    
+    if not category:
+        category = await guild.create_category("Tickets")
+
+    ticket_id = f"{random.randint(1000, 9999)}"
+    channel_name = f"ticket-{interaction.user.name}-{ticket_id}"
+    channel = await guild.create_text_channel(
+        channel_name,
+        category=category,
+        topic=f"Support ticket for {interaction.user.name}"
+    )
+
+    # Set permissions
+    await channel.set_permissions(guild.default_role, read_messages=False)
+    await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
+    for owner_id in OWNER_IDS:
+        try:
+            owner = await bot.fetch_user(owner_id)
+            await channel.set_permissions(owner, read_messages=True, send_messages=True)
+        except Exception as e:
+            print(f"Failed to set permissions for owner {owner_id}: {e}")
+
+    # Send initial message
+    embed = create_embed(
+        "New Support Ticket",
+        f"🎫 Ticket ID: **#{ticket_id}**\n"
+        f"👤 User: {interaction.user.mention}\n"
+        f"🔑 Item ID: {item_id}\n\n"
+        "Please describe your issue here."
+    )
+    await channel.send(embed=embed)
+    
+    await interaction.response.send_message(
+        f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
+        ephemeral=True
+    )
 
 bot.run(TOKEN)
