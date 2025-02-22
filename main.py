@@ -221,22 +221,36 @@ async def replace(interaction: discord.Interaction, user: discord.Member, item_n
 
 @bot.tree.command(name="ticket", description="Open a support ticket 🎫")
 @app_commands.describe(
+    ticket_type="Type of ticket",
     issue="Describe your issue",
     item_id="The item ID if related to a purchase"
 )
-async def ticket(interaction: discord.Interaction, issue: str, item_id: str = None):
-    # Create ticket channel
-    guild = interaction.guild
-    category = discord.utils.get(guild.categories, name="Tickets")
+@app_commands.choices(ticket_type=[
+    app_commands.Choice(name="General Support", value="support"),
+    app_commands.Choice(name="Item Replacement", value="replacement"),
+    app_commands.Choice(name="Purchase Issue", value="purchase")
+])
+async def ticket(interaction: discord.Interaction, ticket_type: str, issue: str, item_id: str = None):
+    try:
+        guild_id = int(os.getenv('GUILD_ID'))
+        guild = bot.get_guild(guild_id)
+        if not guild:
+            await interaction.response.send_message("❌ Error: Server not found!", ephemeral=True)
+            return
+    except (ValueError, TypeError):
+        await interaction.response.send_message("❌ Error: Invalid server configuration!", ephemeral=True)
+        return
 
+    category = discord.utils.get(guild.categories, name="Tickets")
     if not category:
         category = await guild.create_category("Tickets")
 
-    channel_name = f"ticket-{interaction.user.name}-{random.randint(1000, 9999)}"
+    ticket_id = random.randint(1000, 9999)
+    channel_name = f"{ticket_type}-{interaction.user.name}-{ticket_id}"
     channel = await guild.create_text_channel(
         channel_name,
         category=category,
-        topic=f"Support ticket for {interaction.user.name}"
+        topic=f"{ticket_type.capitalize()} ticket for {interaction.user.name}"
     )
 
     # Set permissions
@@ -249,15 +263,25 @@ async def ticket(interaction: discord.Interaction, issue: str, item_id: str = No
         except Exception as e:
             print(f"Failed to set permissions for owner {owner_id}: {e}")
 
-    # Send initial message
+    # Create type-specific message
+    type_emoji = {
+        "support": "❓",
+        "replacement": "🔄",
+        "purchase": "🛒"
+    }
+
     embed = create_embed(
-        "New Support Ticket",
-        f"User: {interaction.user.mention}\nIssue: {issue}\nItem ID: {item_id if item_id else 'N/A'}"
+        f"{type_emoji[ticket_type]} New {ticket_type.capitalize()} Ticket",
+        f"🎫 Ticket ID: **#{ticket_id}**\n"
+        f"👤 User: {interaction.user.mention}\n"
+        f"📝 Issue: {issue}\n"
+        f"🔑 Item ID: {item_id if item_id else 'N/A'}\n\n"
+        "Please wait for a staff member to assist you."
     )
     await channel.send(embed=embed)
 
     await interaction.response.send_message(
-        f"✅ Ticket created! Please check {channel.mention}",
+        f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
         ephemeral=True
     )
 
@@ -455,46 +479,6 @@ async def purchase(interaction: discord.Interaction, quantity: int = 1):
 
 
 
-@bot.tree.command(name="wrong", description="Report an issue with your purchase 🎟️")
-async def wrong(interaction: discord.Interaction, item_id: str):
-    # Create ticket channel
-    guild = interaction.guild
-    category = discord.utils.get(guild.categories, name="Tickets")
 
-    if not category:
-        category = await guild.create_category("Tickets")
-
-    ticket_id = f"{random.randint(1000, 9999)}"
-    channel_name = f"ticket-{interaction.user.name}-{ticket_id}"
-    channel = await guild.create_text_channel(
-        channel_name,
-        category=category,
-        topic=f"Support ticket for {interaction.user.name}"
-    )
-
-    # Set permissions
-    await channel.set_permissions(guild.default_role, read_messages=False)
-    await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
-    for owner_id in OWNER_IDS:
-        try:
-            owner = await bot.fetch_user(owner_id)
-            await channel.set_permissions(owner, read_messages=True, send_messages=True)
-        except Exception as e:
-            print(f"Failed to set permissions for owner {owner_id}: {e}")
-
-    # Send initial message
-    embed = create_embed(
-        "New Support Ticket",
-        f"🎫 Ticket ID: **#{ticket_id}**\n"
-        f"👤 User: {interaction.user.mention}\n"
-        f"🔑 Item ID: {item_id}\n\n"
-        "Please describe your issue here."
-    )
-    await channel.send(embed=embed)
-
-    await interaction.response.send_message(
-        f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
-        ephemeral=True
-    )
 
 bot.run(TOKEN)
