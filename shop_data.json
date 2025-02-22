@@ -3,14 +3,12 @@
         "xgp": {
             "name": "xgp",
             "price": 5.0,
-            "stock": [
-                "hello:hello",
-                "hello2:hello2",
-                "hello3:hello3"
-            ]
+            "stock": []
         }
     },
-    "user_credits": {},
+    "user_credits": {
+        "264688842655793152": 985.0
+    },
     "keys": {
         "CEKB7QA9JBA239D3": 1,
         "KJFYVXHMLOOEFRHT": 0,
@@ -19,6 +17,15 @@
         "1IH94MLH0Z1QVLW3": 1,
         "LO44RC6HIYKSRH31": 1,
         "3TA7FCW47X9F05U7": 1,
-        "IXPPUFJ00ICJO4PA": 1
+        "IXPPUFJ00ICJO4PA": 1,
+        "NX1EO4S55XQZY6ZO": 1000,
+        "M5VCBWH0L5Z2O8FP": 1000,
+        "OIJ41T1D36J8NFG0": 1000,
+        "DYDRFCP7MJL7L1I0": 1000,
+        "ORX3AL7F821P60K2": 1000,
+        "HNY14SKFK5IZAWAB": 1000,
+        "9P1FDAVF2Y6D09BB": 1000,
+        "Q71SOQ2W1LMAY3TN": 1000,
+        "ZESQ4CK4PW3CXVQM": 1000
     }
 }
