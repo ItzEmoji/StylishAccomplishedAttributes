@@ -132,7 +132,15 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
             # Append to existing stock
             shop.stock[item_id]["stock"].extend(stock_items)
             total_stock = len(shop.stock[item_id]["stock"])
-            message = f"✅ Added {len(stock_items)} items to {name} (Total stock: {total_stock})"
+            embed = create_embed(
+                "✅ Stock Updated",
+                f"**Item Details:**\n" + 
+                f"🏷️ Name: `{name}`\n" +
+                f"🔑 ID: `{item_id}`\n" +
+                f"💰 Price: `{shop.stock[item_id]['price']} credits`\n" +
+                f"📦 Added Items: `{len(stock_items)}`\n" +
+                f"📊 Total Stock: `{total_stock}`"
+            )
         else:
             # Create new item
             shop.stock[item_id] = {
@@ -140,11 +148,16 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
                 "price": price,
                 "stock": stock_items
             }
-            message = f"✅ Created new item {name} with {len(stock_items)} items"
+            embed = create_embed(
+                "✅ New Item Added",
+                f"**Item Details:**\n" + 
+                f"🏷️ Name: `{name}`\n" +
+                f"🔑 ID: `{item_id}`\n" +
+                f"💰 Price: `{price} credits`\n" +
+                f"📦 Initial Stock: `{len(stock_items)}`"
+            )
         
         shop.save_data()
-        embed = create_embed("Stock Added", message
-        )
         await interaction.response.send_message(embed=embed)
     except Exception as e:
         await interaction.response.send_message(f"❌ Error processing file: {str(e)}")
