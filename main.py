@@ -208,12 +208,8 @@ async def purchase(interaction: discord.Interaction, item_id: str, quantity: int
             )
     else:
         # Create txt file for multiple items
-        file = discord.File(
-            fp=discord.File(
-                io.StringIO('\n'.join(purchased_items)),
-                filename=f"{item['name']}_purchase.txt"
-            )
-        )
+        buffer = io.StringIO('\n'.join(purchased_items))
+        file = discord.File(fp=buffer, filename=f"{item['name']}_purchase.txt")
         dm_embed = create_embed(
             "Purchase Successful",
             f"🎉 You purchased {quantity}x {item['name']}\nCheck the attached file for your items!"
