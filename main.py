@@ -223,18 +223,133 @@ async def replace(interaction: discord.Interaction, user: discord.Member, item_n
     )
     await interaction.response.send_message(embed=embed)
 
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+        self.add_item(TicketSelect())
+
+class TicketSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(
+                label="General Support",
+                value="support",
+                description="Get help with general issues",
+                emoji="❓"
+            ),
+            discord.SelectOption(
+                label="Item Replacement",
+                value="replacement",
+                description="Request replacement for invalid items",
+                emoji="🔄"
+            ),
+            discord.SelectOption(
+                label="Purchase Issue",
+                value="purchase",
+                description="Report issues with purchases",
+                emoji="🛒"
+            )
+        ]
+        super().__init__(
+            placeholder="Select ticket type",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        # Create modal for additional information
+        class TicketModal(discord.ui.Modal):
+            def __init__(self, ticket_type):
+                super().__init__(title=f"Create {ticket_type.capitalize()} Ticket")
+                self.ticket_type = ticket_type
+                self.issue = discord.ui.TextInput(
+                    label="Describe your issue",
+                    style=discord.TextStyle.paragraph,
+                    placeholder="Please provide details about your issue",
+                    required=True
+                )
+                self.add_item(self.issue)
+                if ticket_type == "purchase":
+                    self.item_id = discord.ui.TextInput(
+                        label="Item ID (if applicable)",
+                        required=False,
+                        placeholder="Enter the item ID related to your issue"
+                    )
+                    self.add_item(self.item_id)
+
+            async def on_submit(self, interaction: discord.Interaction):
+                try:
+                    guild_id = int(os.getenv('GUILD_ID'))
+                    guild = interaction.client.get_guild(guild_id)
+                    if not guild:
+                        await interaction.response.send_message("❌ Error: Server not found!", ephemeral=True)
+                        return
+                except (ValueError, TypeError):
+                    await interaction.response.send_message("❌ Error: Invalid server configuration!", ephemeral=True)
+                    return
+
+                # Create categories if they don't exist
+                categories = {
+                    "support": "Support Tickets",
+                    "replacement": "Replacement Tickets",
+                    "purchase": "Purchase Tickets"
+                }
+                
+                category_name = categories[self.ticket_type]
+                category = discord.utils.get(guild.categories, name=category_name)
+                if not category:
+                    category = await guild.create_category(category_name)
+
+                ticket_id = random.randint(1000, 9999)
+                channel_name = f"{self.ticket_type}-{interaction.user.name}-{ticket_id}"
+                channel = await guild.create_text_channel(
+                    channel_name,
+                    category=category,
+                    topic=f"{self.ticket_type.capitalize()} ticket for {interaction.user.name}"
+                )
+
+                # Set permissions
+                await channel.set_permissions(guild.default_role, read_messages=False)
+                await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
+                for owner_id in OWNER_IDS:
+                    try:
+                        owner = await interaction.client.fetch_user(owner_id)
+                        await channel.set_permissions(owner, read_messages=True, send_messages=True)
+                    except Exception as e:
+                        print(f"Failed to set permissions for owner {owner_id}: {e}")
+
+                # Create ticket message
+                type_emoji = {
+                    "support": "❓",
+                    "replacement": "🔄",
+                    "purchase": "🛒"
+                }
+
+                item_id_value = getattr(self, 'item_id', None)
+                item_id_text = f"\n🔑 Item ID: {item_id_value.value}" if item_id_value else ""
+
+                embed = create_embed(
+                    f"{type_emoji[self.ticket_type]} New {self.ticket_type.capitalize()} Ticket",
+                    f"🎫 Ticket ID: **#{ticket_id}**\n"
+                    f"👤 User: {interaction.user.mention}\n"
+                    f"📝 Issue: {self.issue.value}{item_id_text}\n\n"
+                    "Please wait for a staff member to assist you."
+                )
+                await channel.send(embed=embed)
+
+                await interaction.response.send_message(
+                    f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
+                    ephemeral=True
+                )
+
+        modal = TicketModal(self.values[0])
+        await interaction.response.send_modal(modal)
+
 @bot.tree.command(name="ticket", description="Open a support ticket 🎫")
-@app_commands.describe(
-    ticket_type="Type of ticket",
-    issue="Describe your issue",
-    item_id="The item ID if related to a purchase"
-)
-@app_commands.choices(ticket_type=[
-    app_commands.Choice(name="General Support", value="support"),
-    app_commands.Choice(name="Item Replacement", value="replacement"),
-    app_commands.Choice(name="Purchase Issue", value="purchase")
-])
-async def ticket(interaction: discord.Interaction, ticket_type: str, issue: str, item_id: str = None):
+async def ticket(interaction: discord.Interaction):
+    view = TicketView()
+    await interaction.response.send_message("Please select the type of ticket you'd like to create:", view=view, ephemeral=True)
     try:
         guild_id = int(os.getenv('GUILD_ID'))
         guild = bot.get_guild(guild_id)
