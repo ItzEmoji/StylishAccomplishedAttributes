@@ -3,7 +3,11 @@
         "xgp": {
             "name": "xgp",
             "price": 5.0,
-            "stock": []
+            "stock": [
+                "hello:hello",
+                "hello2:hello2",
+                "hello3:hello3"
+            ]
         }
     },
     "user_credits": {
