@@ -1,4 +1,3 @@
-
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -98,7 +97,7 @@ async def generatekey(interaction: discord.Interaction, amount: int, credits: in
         key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
         shop.keys[key] = credits
         generated_keys.append(key)
-    
+
     shop.save_data()
 
     if amount == 1:
@@ -138,7 +137,7 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
     try:
         content = await file.read()
         stock_items = content.decode('utf-8').splitlines()
-        
+
         if item_id in shop.stock:
             # Append to existing stock
             shop.stock[item_id]["stock"].extend(stock_items)
@@ -167,7 +166,7 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
                 f"💰 Price: `{price} credits`\n" +
                 f"📦 Initial Stock: `{len(stock_items)}`"
             )
-        
+
         shop.save_data()
         await interaction.response.send_message(embed=embed)
     except Exception as e:
@@ -176,16 +175,16 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
 @bot.tree.command(name="redeem", description="Redeem a key for credits 🎁")
 async def redeem(interaction: discord.Interaction, key: str):
     user_id = str(interaction.user.id)
-    
+
     if key not in shop.keys:
         await interaction.response.send_message("❌ Invalid or already used key!")
         return
-        
+
     credits = shop.keys[key]
     shop.user_credits[user_id] = shop.user_credits.get(user_id, 0) + credits
     del shop.keys[key]
     shop.save_data()
-    
+
     embed = create_embed(
         "Key Redeemed",
         f"✅ Successfully redeemed **{credits}** credits!"
@@ -229,7 +228,7 @@ async def ticket(interaction: discord.Interaction, issue: str, item_id: str = No
     # Create ticket channel
     guild = interaction.guild
     category = discord.utils.get(guild.categories, name="Tickets")
-    
+
     if not category:
         category = await guild.create_category("Tickets")
 
@@ -256,83 +255,146 @@ async def ticket(interaction: discord.Interaction, issue: str, item_id: str = No
         f"User: {interaction.user.mention}\nIssue: {issue}\nItem ID: {item_id if item_id else 'N/A'}"
     )
     await channel.send(embed=embed)
-    
+
     await interaction.response.send_message(
         f"✅ Ticket created! Please check {channel.mention}",
         ephemeral=True
     )
 
-@bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
-async def purchase(interaction: discord.Interaction, item_id: str, quantity: int = 1):
-    user_id = str(interaction.user.id)
-    
-    if item_id not in shop.stock:
-        await interaction.response.send_message("❌ Invalid item ID!")
-        return
 
-    item = shop.stock[item_id]
-    total_cost = item['price'] * quantity
-
-    if len(item['stock']) < quantity:
-        await interaction.response.send_message("❌ Not enough stock available!")
-        return
-
-    if shop.user_credits.get(user_id, 0) < total_cost:
-        await interaction.response.send_message("❌ Insufficient credits!")
-        return
-
-    # Process purchase
-    purchased_items = item['stock'][:quantity]
-    item['stock'] = item['stock'][quantity:]
-    shop.user_credits[user_id] -= total_cost
-    shop.save_data()
-
-    # Send items via DM
-    user = interaction.user
-    
-    if quantity == 1:
-        item_parts = purchased_items[0].split(':')
-        if len(item_parts) == 2:
-            email, password = item_parts
-            dm_embed = create_embed(
-                "Purchase Successful",
-                f"🎉 You purchased {item['name']}\n\n"
-                f"📧 Email: ```{email}```\n"
-                f"🔑 Password: ```{password}```\n\n"
-                f"📝 Combo: ```{email}:{password}```"
-            )
-        else:
-            dm_embed = create_embed(
-                "Purchase Successful",
-                f"🎉 You purchased {item['name']}\n```{purchased_items[0]}```"
-            )
-    else:
-        # Create txt file for multiple items
-        buffer = io.StringIO('\n'.join(purchased_items))
-        file = discord.File(fp=buffer, filename=f"{item['name']}_purchase.txt")
-        dm_embed = create_embed(
-            "Purchase Successful",
-            f"🎉 You purchased {quantity}x {item['name']}\nCheck the attached file for your items!"
+class QuantityModal(discord.ui.Modal):
+    def __init__(self, item_id):
+        super().__init__(title="Purchase Quantity")
+        self.item_id = item_id
+        self.quantity = discord.ui.TextInput(
+            label="Quantity",
+            placeholder="Enter the quantity you want to purchase",
+            style=discord.TextStyle.short,
+            min_length=1,
+            max_length=3,
+            required=True
         )
-        await user.send(embed=dm_embed, file=file)
-        
-    if quantity == 1:
-        await user.send(embed=dm_embed)
+        self.add_item(self.quantity)
 
-    # Confirmation in channel
-    embed = create_embed(
-        "Purchase Successful",
-        f"✅ Successfully purchased {quantity}x {item['name']}\nCheck your DMs for the items!\n\n"
-        "⚠️ If there's any issue with your purchase, use `/ticket` to report it."
-    )
-    await interaction.response.send_message(embed=embed)
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            quantity = int(self.quantity.value)
+            await self.process_purchase(interaction, quantity)
+        except ValueError:
+            await interaction.response.send_message("❌ Invalid quantity!", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ An error occurred: {e}", ephemeral=True)
+
+
+    async def process_purchase(self, interaction: discord.Interaction, quantity: int):
+        user_id = str(interaction.user.id)
+
+        if self.item_id not in shop.stock:
+            await interaction.response.send_message("❌ Invalid item ID!", ephemeral=True)
+            return
+
+        item = shop.stock[self.item_id]
+        total_cost = item['price'] * quantity
+
+        if len(item['stock']) < quantity:
+            await interaction.response.send_message("❌ Not enough stock available!", ephemeral=True)
+            return
+
+        if shop.user_credits.get(user_id, 0) < total_cost:
+            await interaction.response.send_message("❌ Insufficient credits!", ephemeral=True)
+            return
+
+        # Process purchase
+        purchased_items = item['stock'][:quantity]
+        item['stock'] = item['stock'][quantity:]
+        shop.user_credits[user_id] -= total_cost
+        shop.save_data()
+
+        # Send items via DM
+        user = interaction.user
+
+        if quantity == 1:
+            item_parts = purchased_items[0].split(':')
+            if len(item_parts) == 2:
+                email, password = item_parts
+                dm_embed = create_embed(
+                    "Purchase Successful",
+                    f"🎉 You purchased {item['name']}\n\n"
+                    f"📧 Email: ```{email}```\n"
+                    f"🔑 Password: ```{password}```\n\n"
+                    f"📝 Combo: ```{email}:{password}```"
+                )
+            else:
+                dm_embed = create_embed(
+                    "Purchase Successful",
+                    f"🎉 You purchased {item['name']}\n```{purchased_items[0]}```"
+                )
+        else:
+            # Create txt file for multiple items
+            buffer = io.StringIO('\n'.join(purchased_items))
+            file = discord.File(fp=buffer, filename=f"{item['name']}_purchase.txt")
+            dm_embed = create_embed(
+                "Purchase Successful",
+                f"🎉 You purchased {quantity}x {item['name']}\nCheck the attached file for your items!"
+            )
+            await user.send(embed=dm_embed, file=file)
+
+        if quantity == 1:
+            await user.send(embed=dm_embed)
+
+        # Confirmation in channel
+        embed = create_embed(
+            "Purchase Successful",
+            f"✅ Successfully purchased {quantity}x {item['name']}\nCheck your DMs for the items!\n\n"
+            "⚠️ If there's any issue with your purchase, use `/ticket` to report it."
+        )
+        await interaction.response.send_message(embed=embed)
+
+
+class PurchaseView(discord.ui.View):
+    def __init__(self, items):
+        super().__init__()
+        self.add_item(PurchaseSelect(items))
+
+class PurchaseSelect(discord.ui.Select):
+    def __init__(self, items):
+        options = [
+            discord.SelectOption(
+                label=f"{item['name']}",
+                value=item_id,
+                description=f"Price: {item['price']} credits | Stock: {len(item['stock'])}"
+            )
+            for item_id, item in items.items()
+            if len(item['stock']) > 0
+        ]
+        super().__init__(
+            placeholder="Select an item to purchase",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        modal = QuantityModal(self.values[0])
+        await interaction.response.send_modal(modal)
+
+
+@bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
+async def purchase(interaction: discord.Interaction):
+    if not shop.stock:
+        await interaction.response.send_message("❌ No items available in the shop!")
+        return
+    view = PurchaseView(shop.stock)
+    await interaction.response.send_message("Select an item to purchase:", view=view)
+
+
 
 @bot.tree.command(name="wrong", description="Report an issue with your purchase 🎟️")
 async def wrong(interaction: discord.Interaction, item_id: str):
     # Create ticket channel
     guild = interaction.guild
     category = discord.utils.get(guild.categories, name="Tickets")
-    
+
     if not category:
         category = await guild.create_category("Tickets")
 
@@ -363,7 +425,7 @@ async def wrong(interaction: discord.Interaction, item_id: str):
         "Please describe your issue here."
     )
     await channel.send(embed=embed)
-    
+
     await interaction.response.send_message(
         f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
         ephemeral=True
