@@ -137,6 +137,25 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
     except Exception as e:
         await interaction.response.send_message(f"❌ Error processing file: {str(e)}")
 
+@bot.tree.command(name="redeem", description="Redeem a key for credits 🎁")
+async def redeem(interaction: discord.Interaction, key: str):
+    user_id = str(interaction.user.id)
+    
+    if key not in shop.keys:
+        await interaction.response.send_message("❌ Invalid or already used key!")
+        return
+        
+    credits = shop.keys[key]
+    shop.user_credits[user_id] = shop.user_credits.get(user_id, 0) + credits
+    del shop.keys[key]
+    shop.save_data()
+    
+    embed = create_embed(
+        "Key Redeemed",
+        f"✅ Successfully redeemed **{credits}** credits!"
+    )
+    await interaction.response.send_message(embed=embed)
+
 @bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
 async def purchase(interaction: discord.Interaction, item_id: str, quantity: int = 1):
     user_id = str(interaction.user.id)
