@@ -92,13 +92,18 @@ async def generatekey(interaction: discord.Interaction, amount: int, credits: in
         await interaction.response.send_message("❌ You don't have permission to use this command!")
         return
 
-    key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-    shop.keys[key] = credits
+    generated_keys = []
+    for _ in range(amount):
+        key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+        shop.keys[key] = credits
+        generated_keys.append(key)
+    
     shop.save_data()
 
+    keys_text = "\n".join([f"🔑 **{key}** - 💰 {credits} credits" for key in generated_keys])
     embed = create_embed(
-        "Key Generated",
-        f"🔑 Key: **{key}**\n💰 Credits: **{credits}**"
+        "Keys Generated",
+        f"Generated {amount} keys:\n{keys_text}"
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
