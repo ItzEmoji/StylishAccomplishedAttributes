@@ -4,12 +4,6 @@
             "name": "xgp",
             "price": 5.0,
             "stock": [
-                "adflkjasl\u00f6fkdj:als\u00f6dkjflkassd",
-                "adflkjasl\u00f6fkdj:als\u00f6dkjflsdaewa",
-                "adflkjasl\u00f6fkdj:als\u00f6dkjflwearax",
-                "asdfasdfsdf:sfdwerpoiuv",
-                "adflkjasl\u00f6fkdj:als\u00f6dkjflkasj",
-                "adflkjasl\u00f6fkdj:als\u00f6dkjflkassd",
                 "adflkjasl\u00f6fkdj:als\u00f6dkjflsdaewa",
                 "adflkjasl\u00f6fkdj:als\u00f6dkjflwearax",
                 "asdfasdfsdf:sfdwerpoiuv",
@@ -107,7 +101,7 @@
         }
     },
     "user_credits": {
-        "264688842655793152": 425.0,
+        "264688842655793152": 395.0,
         "842452185211076659": 50
     },
     "keys": {
