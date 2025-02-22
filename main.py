@@ -128,16 +128,22 @@ async def addstock(interaction: discord.Interaction, item_id: str, name: str, pr
         content = await file.read()
         stock_items = content.decode('utf-8').splitlines()
         
-        shop.stock[item_id] = {
-            "name": name,
-            "price": price,
-            "stock": stock_items
-        }
+        if item_id in shop.stock:
+            # Append to existing stock
+            shop.stock[item_id]["stock"].extend(stock_items)
+            total_stock = len(shop.stock[item_id]["stock"])
+            message = f"✅ Added {len(stock_items)} items to {name} (Total stock: {total_stock})"
+        else:
+            # Create new item
+            shop.stock[item_id] = {
+                "name": name,
+                "price": price,
+                "stock": stock_items
+            }
+            message = f"✅ Created new item {name} with {len(stock_items)} items"
+        
         shop.save_data()
-
-        embed = create_embed(
-            "Stock Added",
-            f"✅ Added {len(stock_items)} items to {name}"
+        embed = create_embed("Stock Added", message
         )
         await interaction.response.send_message(embed=embed)
     except Exception as e:
