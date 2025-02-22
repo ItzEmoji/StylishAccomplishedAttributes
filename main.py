@@ -350,59 +350,6 @@ class TicketSelect(discord.ui.Select):
 async def ticket(interaction: discord.Interaction):
     view = TicketView()
     await interaction.response.send_message("Please select the type of ticket you'd like to create:", view=view, ephemeral=True)
-    try:
-        guild_id = int(os.getenv('GUILD_ID'))
-        guild = bot.get_guild(guild_id)
-        if not guild:
-            await interaction.response.send_message("❌ Error: Server not found!", ephemeral=True)
-            return
-    except (ValueError, TypeError):
-        await interaction.response.send_message("❌ Error: Invalid server configuration!", ephemeral=True)
-        return
-
-    category = discord.utils.get(guild.categories, name="Tickets")
-    if not category:
-        category = await guild.create_category("Tickets")
-
-    ticket_id = random.randint(1000, 9999)
-    channel_name = f"{ticket_type}-{interaction.user.name}-{ticket_id}"
-    channel = await guild.create_text_channel(
-        channel_name,
-        category=category,
-        topic=f"{ticket_type.capitalize()} ticket for {interaction.user.name}"
-    )
-
-    # Set permissions
-    await channel.set_permissions(guild.default_role, read_messages=False)
-    await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
-    for owner_id in OWNER_IDS:
-        try:
-            owner = await bot.fetch_user(owner_id)
-            await channel.set_permissions(owner, read_messages=True, send_messages=True)
-        except Exception as e:
-            print(f"Failed to set permissions for owner {owner_id}: {e}")
-
-    # Create type-specific message
-    type_emoji = {
-        "support": "❓",
-        "replacement": "🔄",
-        "purchase": "🛒"
-    }
-
-    embed = create_embed(
-        f"{type_emoji[ticket_type]} New {ticket_type.capitalize()} Ticket",
-        f"🎫 Ticket ID: **#{ticket_id}**\n"
-        f"👤 User: {interaction.user.mention}\n"
-        f"📝 Issue: {issue}\n"
-        f"🔑 Item ID: {item_id if item_id else 'N/A'}\n\n"
-        "Please wait for a staff member to assist you."
-    )
-    await channel.send(embed=embed)
-
-    await interaction.response.send_message(
-        f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
-        ephemeral=True
-    )
 
 
 class QuantityModal(discord.ui.Modal):
