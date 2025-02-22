@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import random
 import string
+import io
 
 # Load environment variables
 load_dotenv()
@@ -188,12 +189,39 @@ async def purchase(interaction: discord.Interaction, item_id: str, quantity: int
 
     # Send items via DM
     user = interaction.user
-    items_text = '\n'.join(purchased_items)
-    dm_embed = create_embed(
-        "Purchase Successful",
-        f"🎉 You purchased {quantity}x {item['name']}\n```{items_text}```"
-    )
-    await user.send(embed=dm_embed)
+    
+    if quantity == 1:
+        item_parts = purchased_items[0].split(':')
+        if len(item_parts) == 2:
+            email, password = item_parts
+            dm_embed = create_embed(
+                "Purchase Successful",
+                f"🎉 You purchased {item['name']}\n\n"
+                f"📧 Email: ```{email}```\n"
+                f"🔑 Password: ```{password}```\n\n"
+                f"📝 Combo: ```{email}:{password}```"
+            )
+        else:
+            dm_embed = create_embed(
+                "Purchase Successful",
+                f"🎉 You purchased {item['name']}\n```{purchased_items[0]}```"
+            )
+    else:
+        # Create txt file for multiple items
+        file = discord.File(
+            fp=discord.File(
+                io.StringIO('\n'.join(purchased_items)),
+                filename=f"{item['name']}_purchase.txt"
+            )
+        )
+        dm_embed = create_embed(
+            "Purchase Successful",
+            f"🎉 You purchased {quantity}x {item['name']}\nCheck the attached file for your items!"
+        )
+        await user.send(embed=dm_embed, file=file)
+        
+    if quantity == 1:
+        await user.send(embed=dm_embed)
 
     # Confirmation in channel
     embed = create_embed(
