@@ -57,10 +57,10 @@ def create_embed(title, description, color=discord.Color.blue()):
 @bot.event
 async def on_ready():
     try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s)")
+        await bot.tree.sync(guild=None)  # Force global sync
+        print("Successfully synced commands")
     except Exception as e:
-        print(e)
+        print(f"Error syncing commands: {e}")
     print(f"{bot.user} is ready! 🚀")
 
 @bot.tree.command(name="balance", description="Check your credit balance 💰")
