@@ -192,6 +192,76 @@ async def redeem(interaction: discord.Interaction, key: str):
     )
     await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="replace", description="Request a replacement for invalid item [Admin Only] 🔄")
+@app_commands.describe(
+    user="The user who needs a replacement",
+    item_name="The name of the invalid item"
+)
+async def replace(interaction: discord.Interaction, user: discord.Member, item_name: str):
+    if not is_owner(interaction.user.id):
+        await interaction.response.send_message("❌ You don't have permission to use this command!")
+        return
+
+    # Notify admins via DM
+    for owner_id in OWNER_IDS:
+        try:
+            owner = await bot.fetch_user(owner_id)
+            embed = create_embed(
+                "⚠️ Invalid Item Report",
+                f"User: {user.mention}\nItem: {item_name}\nReported by: {interaction.user.mention}"
+            )
+            await owner.send(embed=embed)
+        except Exception as e:
+            print(f"Failed to DM owner {owner_id}: {e}")
+
+    embed = create_embed(
+        "Replacement Initiated",
+        f"✅ Replacement request for {user.mention} has been sent to the admins."
+    )
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="ticket", description="Open a support ticket 🎫")
+@app_commands.describe(
+    issue="Describe your issue",
+    item_id="The item ID if related to a purchase"
+)
+async def ticket(interaction: discord.Interaction, issue: str, item_id: str = None):
+    # Create ticket channel
+    guild = interaction.guild
+    category = discord.utils.get(guild.categories, name="Tickets")
+    
+    if not category:
+        category = await guild.create_category("Tickets")
+
+    channel_name = f"ticket-{interaction.user.name}-{random.randint(1000, 9999)}"
+    channel = await guild.create_text_channel(
+        channel_name,
+        category=category,
+        topic=f"Support ticket for {interaction.user.name}"
+    )
+
+    # Set permissions
+    await channel.set_permissions(guild.default_role, read_messages=False)
+    await channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
+    for owner_id in OWNER_IDS:
+        try:
+            owner = await bot.fetch_user(owner_id)
+            await channel.set_permissions(owner, read_messages=True, send_messages=True)
+        except Exception as e:
+            print(f"Failed to set permissions for owner {owner_id}: {e}")
+
+    # Send initial message
+    embed = create_embed(
+        "New Support Ticket",
+        f"User: {interaction.user.mention}\nIssue: {issue}\nItem ID: {item_id if item_id else 'N/A'}"
+    )
+    await channel.send(embed=embed)
+    
+    await interaction.response.send_message(
+        f"✅ Ticket created! Please check {channel.mention}",
+        ephemeral=True
+    )
+
 @bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
 async def purchase(interaction: discord.Interaction, item_id: str, quantity: int = 1):
     user_id = str(interaction.user.id)
