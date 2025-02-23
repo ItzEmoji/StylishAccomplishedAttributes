@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import random
 import string
 import io
-
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
