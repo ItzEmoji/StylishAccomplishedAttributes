@@ -295,7 +295,7 @@ class TicketSelect(discord.ui.Select):
                     "replacement": "Replacement Tickets",
                     "purchase": "Purchase Tickets"
                 }
-                
+
                 category_name = categories[self.ticket_type]
                 category = discord.utils.get(guild.categories, name=category_name)
                 if not category:
@@ -395,11 +395,22 @@ class QuantityModal(discord.ui.Modal):
             await interaction.response.send_message("❌ Insufficient credits!", ephemeral=True)
             return
 
+        # Generate purchase ID
+        purchase_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
         # Process purchase
         purchased_items = item['stock'][:quantity]
         item['stock'] = item['stock'][quantity:]
         shop.user_credits[user_id] -= total_cost
         shop.save_data()
+
+        # Create purchases directory if it doesn't exist
+        if not os.path.exists('purchases'):
+            os.makedirs('purchases')
+
+        # Save purchase to file
+        with open(f'purchases/{purchase_id}.txt', 'w') as f:
+            f.write('\n'.join(purchased_items))
 
         # Send items via DM
         user = interaction.user
@@ -410,7 +421,8 @@ class QuantityModal(discord.ui.Modal):
                 email, password = item_parts
                 dm_embed = create_embed(
                     "Purchase Successful",
-                    f"🎉 You purchased {item['name']}\n\n"
+                    f"🎉 You purchased {item['name']}\n"
+                    f"📦 Purchase ID: `{purchase_id}`\n\n"
                     f"📧 Email: ```{email}```\n"
                     f"🔑 Password: ```{password}```\n\n"
                     f"📝 Combo: ```{email}:{password}```"
@@ -418,7 +430,9 @@ class QuantityModal(discord.ui.Modal):
             else:
                 dm_embed = create_embed(
                     "Purchase Successful",
-                    f"🎉 You purchased {item['name']}\n```{purchased_items[0]}```"
+                    f"🎉 You purchased {item['name']}\n"
+                    f"📦 Purchase ID: `{purchase_id}`\n"
+                    f"```{purchased_items[0]}```"
                 )
         else:
             # Create txt file for multiple items
@@ -436,10 +450,13 @@ class QuantityModal(discord.ui.Modal):
         # Confirmation in channel
         embed = create_embed(
             "Purchase Successful",
-            f"✅ Successfully purchased {quantity}x {item['name']}\nCheck your DMs for the items!\n\n"
+            f"✅ Successfully purchased {quantity}x {item['name']}\n"
+            f"📦 Purchase ID: `{purchase_id}`\n"
+            f"Check your DMs for the items!\n\n"
             "⚠️ If there's any issue with your purchase, use `/ticket` to report it."
         )
-        await interaction.response.send_message(embed=embed)
+        purchase_file = discord.File(f'purchases/{purchase_id}.txt', filename=f'{purchase_id}.txt')
+        await interaction.response.send_message(embed=embed, file=purchase_file)
 
 
 class PurchaseView(discord.ui.View):
@@ -485,7 +502,7 @@ class PurchaseSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         item_id = self.values[0]
         user_id = str(interaction.user.id)
-        
+
         if item_id not in shop.stock:
             await interaction.response.send_message("❌ Invalid item ID!", ephemeral=True)
             return
@@ -552,7 +569,7 @@ async def help(interaction: discord.Interaction):
         "Available Commands 📚",
         "Here are all the available commands:"
     )
-    
+
     commands = {
         "balance": "Check your credit balance 💰",
         "stock": "Check available items in shop 🏪",
@@ -561,7 +578,7 @@ async def help(interaction: discord.Interaction):
         "ticket": "Open a support ticket 🎫",
         "help": "Show this help message 📚"
     }
-    
+
     # Add owner-only commands if user is an owner
     if is_owner(interaction.user.id):
         commands.update({
@@ -569,10 +586,10 @@ async def help(interaction: discord.Interaction):
             "addstock": "Add items to shop inventory 🏪",
             "replace": "Process replacement requests 🔄"
         })
-    
+
     for cmd, desc in commands.items():
         embed.add_field(name=f"/{cmd}", value=desc, inline=False)
-    
+
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
@@ -581,11 +598,11 @@ async def purchase(interaction: discord.Interaction, quantity: int = 1):
     if not shop.stock:
         await interaction.response.send_message("❌ No items available in the shop!")
         return
-        
+
     if quantity < 1:
         await interaction.response.send_message("❌ Quantity must be at least 1!", ephemeral=True)
         return
-        
+
     view = PurchaseView(shop.stock, quantity)
     await interaction.response.send_message("Select an item to purchase:", view=view)
 
