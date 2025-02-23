@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import random
 import string
 import io
+import asyncio
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -335,7 +336,8 @@ class TicketSelect(discord.ui.Select):
                     f"📝 Issue: {self.issue.value}{item_id_text}\n\n"
                     "Please wait for a staff member to assist you."
                 )
-                await channel.send(embed=embed)
+                view = CloseTicketView()
+                await channel.send(embed=embed, view=view)
 
                 await interaction.response.send_message(
                     f"✅ Ticket created! Please check {channel.mention}\nYour ticket ID: **#{ticket_id}**",
@@ -445,6 +447,22 @@ class PurchaseView(discord.ui.View):
         super().__init__()
         self.add_item(PurchaseSelect(items, quantity))
 
+class CloseTicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+
+    @discord.ui.button(label="Claim Ticket", style=discord.ButtonStyle.primary, emoji="✋")
+    async def claim_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(f"🎫 Ticket claimed by {interaction.user.mention}", ephemeral=False)
+        button.disabled = True
+        await interaction.message.edit(view=self)
+
+    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji="🔒")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("🔒 Closing ticket in 5 seconds...", ephemeral=False)
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
+
 class PurchaseSelect(discord.ui.Select):
     def __init__(self, items, quantity):
         self.quantity = quantity
@@ -527,6 +545,35 @@ class PurchaseSelect(discord.ui.Select):
         )
         await interaction.response.send_message(embed=embed)
 
+
+@bot.tree.command(name="help", description="Show available commands 📚")
+async def help(interaction: discord.Interaction):
+    embed = create_embed(
+        "Available Commands 📚",
+        "Here are all the available commands:"
+    )
+    
+    commands = {
+        "balance": "Check your credit balance 💰",
+        "stock": "Check available items in shop 🏪",
+        "purchase": "Purchase items from shop 🛒",
+        "redeem": "Redeem a key for credits 🎁",
+        "ticket": "Open a support ticket 🎫",
+        "help": "Show this help message 📚"
+    }
+    
+    # Add owner-only commands if user is an owner
+    if is_owner(interaction.user.id):
+        commands.update({
+            "generatekey": "Generate redeem keys 🔑",
+            "addstock": "Add items to shop inventory 🏪",
+            "replace": "Process replacement requests 🔄"
+        })
+    
+    for cmd, desc in commands.items():
+        embed.add_field(name=f"/{cmd}", value=desc, inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="purchase", description="Purchase items from shop 🛒")
 @app_commands.describe(quantity="Number of items to purchase")
